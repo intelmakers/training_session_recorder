@@ -56,8 +56,10 @@ class StrmServer :
     _camera = None
     _stop_server = False
     _main_thread = None
+    _stop_rec_thread = None
     _irw_thread = None
     _last_btn = ""
+    _now = ""
     def __init__(self):
         self.led_red_pin = self.init_gpio_out_pin(self.led_red_gpio4)
         self.led_grn_pin = self.init_gpio_out_pin(self.led_grn_gpio5)
@@ -94,6 +96,12 @@ class StrmServer :
         if len(ls) >=3:
             return ls[2]
         return ""
+
+    def StopRecThread(self):
+        for i in range(0,1000,1): 
+            time.sleep(0.01)
+        os.system("pkill raspivid")
+        os.system("mv /home/pi/recordings/" + self.fname + " /home/pi/videos_share/" + self.fname)
             
     def ControlThread(self):
         input_str = ''
@@ -109,15 +117,18 @@ class StrmServer :
                 if(btn == "KEY_A") or (btn == "KEY_B") or (btn == "KEY_C"):
                     self.led_red_pin.digitalWrite(self.led_red_gpio4, self.led_red_pin.HIGH)
                     print(btn)
+                    self._now = datetime.datetime.now()
+                    now = self._now
+                    self.fname = "{:02}-{:02}-{:02}_{:02}.{:02}.{:02}_sambo.h264".format(now.year,now.month,now.day,now.hour,now.minute,now.second)
+                    #fname = "/home/pi/videos_share/{:02}-{:02}-{:02}_{:02}.{:02}.{:02}_sambo.h264".format(now.year,now.month,now.day,now.hour,now.minute,now.second)                    
+                    if(btn == "KEY_A"):
+                        os.system("raspivid -t 0 -o " + "/home/pi/recordings/" + self.fname + " &")
                 elif (btn == "KEY_D"):
                     self.led_red_pin.digitalWrite(self.led_red_gpio4, self.led_red_pin.LOW)
                     print(btn)
-                    os.system("pkill raspivid")
-
-                now = datetime.datetime.now()
-                fname = "/home/pi/recordings/{}-{}-{}_{}.{}.{}_sambo.h264".format(now.year,now.month,now.day,now.hour,now.minute,now.second)                    
-                if(btn == "KEY_A"):
-                    os.system("raspivid -t 0 -o " + fname + " &")
+                    self._stop_rec_thread = threading.Thread(target=self.StopRecThread)
+                    self._stop_rec_thread.start()
+               
             
         try:               
             self._camera.close()
@@ -128,7 +139,6 @@ class StrmServer :
 
 
 
-if __name__ == "__main__":
-    srv = StrmServer()
-    srv.Run()
-    #srv.StreamingThread()
+#if __name__ == "__main__":
+srv = StrmServer()
+srv.Run()
